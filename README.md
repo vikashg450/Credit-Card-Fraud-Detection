@@ -254,13 +254,7 @@ Install all at once:
 pip install -r requirements.txt
 ```
 
----
 
-## 📄 License
-
-This project is released under the **MIT License** — free to use, modify, and distribute.
-
----
 
 <div align="center">
 
