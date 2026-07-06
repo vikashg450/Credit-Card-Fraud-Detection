@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SENTINEL: AI Credit Card Fraud Detection Hub</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="header-container">
+            <div class="logo-area">
+                <i class="fa-solid fa-shield-halved logo-icon"></i>
+                <div class="logo-text">
+                    <h1>SENTINEL</h1>
+                    <p>AI Fraud Engine v1.0</p>
+                </div>
+            </div>
+            
+            <nav class="nav-tabs">
+                <button class="tab-btn active" data-tab="eda-tab">
+                    <i class="fa-solid fa-chart-pie" style="margin-right: 6px;"></i>Interactive EDA
+                </button>
+                <button class="tab-btn" data-tab="model-tab">
+                    <i class="fa-solid fa-microchip" style="margin-right: 6px;"></i>Model Analytics
+                </button>
+                <button class="tab-btn" data-tab="tester-tab">
+                    <i class="fa-solid fa-user-shield" style="margin-right: 6px;"></i>Real-Time Tester
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main>
+        
+        <!-- Summary Stats Cards (Persistent on all tabs) -->
+        <section class="grid-cols-4" style="margin-bottom: 2rem;">
+            <div class="glass-card stat-card primary">
+                <div class="stat-label">Total Transactions</div>
+                <div class="stat-value">284,807</div>
+                <div class="stat-subtext">ULB September 2013 Dataset</div>
+            </div>
+            <div class="glass-card stat-card danger">
+                <div class="stat-label">Fraud Prevalence</div>
+                <div class="stat-value">0.173%</div>
+                <div class="stat-subtext">492 Fraud / 284,315 Legit</div>
+            </div>
+            <div class="glass-card stat-card success">
+                <div class="stat-label">XGBoost PR-AUC</div>
+                <div class="stat-value" id="xgb-pr-auc">0.7810</div>
+                <div class="stat-subtext">Primary Evaluation Metric</div>
+            </div>
+            <div class="glass-card stat-card secondary">
+                <div class="stat-label">Baseline PR-AUC</div>
+                <div class="stat-value" id="lr-pr-auc">0.6729</div>
+                <div class="stat-subtext">Logistic Regression (Balanced)</div>
+            </div>
+        </section>
+
+        <!-- Tab 1: Interactive EDA Dashboard -->
+        <section id="eda-tab" class="tab-content active">
+            <div class="glass-card" style="margin-bottom: 2rem;">
+                <h2 style="font-family: var(--font-heading); margin-bottom: 0.5rem; font-weight: 800;">Dataset Analysis & Key Findings</h2>
+                <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                    Explore the underlying distributions and relationships in the credit card transactions dataset. Since features V1–V28 are PCA-transformed components for customer privacy, we focus on identifying class separability patterns, transaction volumes, and skewness of untouched transaction attributes.
+                </p>
+            </div>
+            
+            <div class="grid-cols-2">
+                <!-- Plot 1 -->
+                <div class="glass-card">
+                    <h3 style="font-family: var(--font-heading); font-weight: 700;">1. Skewed Transaction Amount Distribution</h3>
+                    <div class="plot-container">
+                        <img src="/static/plots/amount_distribution.png" alt="Amount Distribution Chart">
+                    </div>
+                    <p class="plot-desc">
+                        <strong>Insight:</strong> The raw transaction amount distribution is heavily right-skewed. To capture patterns effectively across linear models, a log-scaling mapping was applied. Note how fraud transactions (pink) exhibit different density profiles, often clustering around larger dollar amounts or specific micro-ranges.
+                    </p>
+                </div>
+                
+                <!-- Plot 2 -->
+                <div class="glass-card">
+                    <h3 style="font-family: var(--font-heading); font-weight: 700;">2. Transaction Volume & Nocturnal Activity</h3>
+                    <div class="plot-container">
+                        <img src="/static/plots/time_distribution.png" alt="Time Distribution Chart">
+                    </div>
+                    <p class="plot-desc">
+                        <strong>Insight:</strong> The distribution of transactions across the 24-hour cycle. Fraud (pink) shows elevated activity relative to total transaction rates during nocturnal off-hours (between hours 2 and 6 AM) when legitimate transactions are at their lowest point, presenting a strong indicator.
+                    </p>
+                </div>
+                
+                <!-- Plot 3 -->
+                <div class="glass-card">
+                    <h3 style="font-family: var(--font-heading); font-weight: 700;">3. Top Discriminative Features Heatmap</h3>
+                    <div class="plot-container">
+                        <img src="/static/plots/correlation_matrix.png" alt="Correlation Matrix Heatmap">
+                    </div>
+                    <p class="plot-desc">
+                        <strong>Insight:</strong> The correlation matrix highlights the components showing the strongest positive and negative linear correlation with our target <code>Class</code>. PCA features <strong>V17</strong>, <strong>V14</strong>, <strong>V12</strong>, and <strong>V10</strong> exhibit strong negative correlations, while <strong>V4</strong> and <strong>V11</strong> correlate positively.
+                    </p>
+                </div>
+                
+                <!-- Plot 4 -->
+                <div class="glass-card">
+                    <h3 style="font-family: var(--font-heading); font-weight: 700;">4. Class Separability (V17 vs V14)</h3>
+                    <div class="plot-container">
+                        <img src="/static/plots/top_features_scatter.png" alt="Separability Scatter Chart">
+                    </div>
+                    <p class="plot-desc">
+                        <strong>Insight:</strong> Plotting the top two negatively-correlated PCA features (<code>V17</code> vs <code>V14</code>) demonstrates how fraud transactions cluster cleanly in the bottom-left quadrant. This visual clustering validates that the dataset contains strong, separable features for machine learning models to capture.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 2: Model Performance Analytics -->
+        <section id="model-tab" class="tab-content">
+            <div class="glass-card" style="margin-bottom: 2rem;">
+                <h2 style="font-family: var(--font-heading); font-weight: 800; margin-bottom: 0.5rem;">Model Performance Comparison</h2>
+                <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                    Models are evaluated on a held-out test set (56,746 rows) preserving the 0.17% class imbalance. Because accuracy is a misleading metric, we prioritize <strong>Precision-Recall Area Under the Curve (PR-AUC)</strong>, which evaluates precision against recall trade-offs directly.
+                </p>
+                
+                <div class="metrics-table-wrapper">
+                    <table class="metrics-table">
+                        <thead>
+                            <tr>
+                                <th>Model Name</th>
+                                <th>Accuracy</th>
+                                <th>Precision (False Alarm Rate)</th>
+                                <th>Recall (Detection Rate)</th>
+                                <th>F1-Score</th>
+                                <th>PR-AUC (Primary)</th>
+                                <th>ROC-AUC</th>
+                            </tr>
+                        </thead>
+                        <tbody id="metrics-table-body">
+                            <!-- Populated dynamically via app.js -->
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--text-muted);">Loading evaluation results...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="grid-cols-2">
+                <!-- Confusion Matrices -->
+                <div class="glass-card">
+                    <h3 style="font-family: var(--font-heading); font-weight: 700; margin-bottom: 0.5rem;">Confusion Matrices Comparison</h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">
+                        Side-by-side matrices showing the count of Legit and Fraud transactions detected correctly or missed.
+                    </p>
+                    <div class="plot-container" style="aspect-ratio: 1.3;">
+                        <img src="/static/plots/confusion_matrices.png" alt="Confusion Matrices Diagram">
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 1rem; line-height: 1.5;">
+                        Notice that while Logistic Regression catches slightly more fraud (Recall 87% vs 84%), it creates <strong>1,617 False Alarms</strong> (Precision 5%), whereas XGBoost drastically reduces false alarms to <strong>205</strong> (Precision 28%) while maintaining an 84% detection rate.
+                    </p>
+                </div>
+                
+                <!-- PR Curves -->
+                <div class="glass-card">
+                    <h3 style="font-family: var(--font-heading); font-weight: 700; margin-bottom: 0.5rem;">Precision-Recall (PR) Curves</h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">
+                        Illustrates the model precision relative to recall across all decision probability cutoffs.
+                    </p>
+                    <div class="plot-container" style="aspect-ratio: 1.3;">
+                        <img src="/static/plots/pr_curve.png" alt="Precision Recall Curves">
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 1rem; line-height: 1.5;">
+                        XGBoost (green curve, PR-AUC = 0.7810) stays much higher towards the top-right than Logistic Regression (purple curve, PR-AUC = 0.6729), indicating that XGBoost yields superior detection accuracy and cleaner threshold tuning.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Global Feature Importances Card -->
+            <div class="glass-card" style="margin-top: 2rem;">
+                <h3 style="font-family: var(--font-heading); font-weight: 700; margin-bottom: 1rem;">XGBoost Global Feature Importances</h3>
+                <div id="global-importances-list" style="max-width: 600px;">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 3: Real-Time Classifier Suite -->
+        <section id="tester-tab" class="tab-content">
+            <div class="glass-card" style="margin-bottom: 2rem;">
+                <h2 style="font-family: var(--font-heading); font-weight: 800; margin-bottom: 0.5rem;">Real-Time Transaction Testing Workspace</h2>
+                <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                    Simulate how the classification model works in a real-time banking pipeline. You can input transaction attributes manually or use the presets to load a random transaction from our test partition (either a confirmed legitimate or fraudulent transaction).
+                </p>
+            </div>
+            
+            <div class="grid-main-tester">
+                <!-- Form Inputs Card -->
+                <div class="glass-card">
+                    <div class="tester-controls">
+                        <div>
+                            <h3 style="font-family: var(--font-heading); font-weight: 700;">Transaction Profile Parameters</h3>
+                            <p style="font-size: 0.8rem; color: var(--text-muted);">Configure values manually or load test presets.</p>
+                        </div>
+                        <div class="sample-buttons">
+                            <button id="btn-load-legit" class="btn btn-success-outline">
+                                <i class="fa-solid fa-circle-check"></i> Load Random Legit
+                            </button>
+                            <button id="btn-load-fraud" class="btn btn-danger-outline">
+                                <i class="fa-solid fa-circle-exclamation"></i> Load Random Fraud
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: right; margin-top: -1rem; margin-bottom: 1.25rem;">
+                        <span id="sample-status" style="font-size: 0.85rem; font-weight: 600; transition: all 0.3s ease;"></span>
+                    </div>
+                    
+                    <form id="predict-form">
+                        <!-- Header Inputs (Time, Amount, Model) -->
+                        <div class="grid-cols-4" style="grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.01); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-color);">
+                            <div class="form-field">
+                                <label for="input-time">Time (Seconds)</label>
+                                <input type="number" id="input-time" value="0" step="1" required>
+                            </div>
+                            <div class="form-field">
+                                <label for="input-amount">Amount ($)</label>
+                                <input type="number" id="input-amount" value="10.00" step="0.01" required>
+                            </div>
+                            <div class="form-field" style="grid-column: span 2;">
+                                <label for="model-select">Classification Engine</label>
+                                <select id="model-select" class="select-input" style="width: 100%;">
+                                    <option value="XGBoost" selected>XGBoost (Recommended - PR-AUC 0.7810)</option>
+                                    <option value="Logistic Regression">Logistic Regression (Baseline - PR-AUC 0.6729)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <h4 style="font-family: var(--font-heading); margin-bottom: 0.75rem; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">PCA Components (V1 - V28)</h4>
+                        
+                        <!-- V1 - V28 Input Fields (Grid) -->
+                        <div class="form-group-grid">
+                            <!-- Loop V1 to V28 -->
+                            <script>
+                                for (let i = 1; i <= 28; i++) {
+                                    document.write(`
+                                        <div class="form-field">
+                                            <label for="input-v${i}">V${i}</label>
+                                            <input type="number" id="input-v${i}" value="0.00000" step="0.00001" required>
+                                        </div>
+                                    `);
+                                }
+                            </script>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: flex-end;">
+                            <button type="submit" class="btn btn-primary" style="padding: 0.8rem 2rem; font-size: 1rem;">
+                                <i class="fa-solid fa-bolt"></i> Analyze Transaction
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Results Panel Card -->
+                <div class="glass-card" style="min-height: 400px; display: flex; flex-direction: column;">
+                    <h3 style="font-family: var(--font-heading); font-weight: 700; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">AI Classifier Output</h3>
+                    
+                    <div id="prediction-result-area" style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+                        <div class="result-placeholder">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.3;">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <p>Fill out the parameters or load a sample, select a model, and click "Analyze Transaction" to predict fraud.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border-color); background: rgba(10, 10, 18, 0.4);">
+        <p>SENTINEL AI Fraud Dashboard | Powered by FastAPI, Scikit-Learn, and XGBoost</p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

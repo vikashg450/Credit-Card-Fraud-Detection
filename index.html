@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🛡️ Credit Card Fraud Detection — AI Sentinel System</title>
+  <meta name="description" content="An end-to-end ML pipeline with XGBoost, SMOTE, and a real-time FastAPI web dashboard for credit card fraud detection. PR-AUC optimized with 85% fewer false alarms." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary: #080c18;
+      --bg-secondary: #0d1428;
+      --bg-card: rgba(255,255,255,0.04);
+      --bg-card-hover: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.08);
+      --border-glow: rgba(56,189,248,0.3);
+      --text-primary: #f0f4ff;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-cyan: #38bdf8;
+      --accent-violet: #a78bfa;
+      --accent-green: #34d399;
+      --accent-orange: #fb923c;
+      --accent-pink: #f472b6;
+      --gradient-hero: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0c1a35 100%);
+      --gradient-card: linear-gradient(135deg, rgba(56,189,248,0.08) 0%, rgba(167,139,250,0.08) 100%);
+      --shadow-glow: 0 0 40px rgba(56,189,248,0.15);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── BACKGROUND PARTICLES ── */
+    #bg-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0; pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .wrapper { position: relative; z-index: 1; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 2.5rem;
+      background: rgba(8,12,24,0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-size: 1.1rem; font-weight: 700;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-violet));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .nav-links { display: flex; gap: 2rem; }
+    .nav-links a {
+      color: var(--text-secondary); text-decoration: none;
+      font-size: 0.875rem; font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--accent-cyan); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 6rem 2rem 4rem;
+      background: var(--gradient-hero);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 50% 60%, rgba(56,189,248,0.08) 0%, transparent 70%);
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.4rem 1.2rem;
+      border: 1px solid var(--border-glow);
+      border-radius: 999px;
+      font-size: 0.8rem; font-weight: 600;
+      color: var(--accent-cyan);
+      background: rgba(56,189,248,0.08);
+      margin-bottom: 1.5rem;
+      animation: fadeSlideDown 0.6s ease both;
+    }
+    .hero-badge .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      animation: fadeSlideDown 0.7s ease 0.1s both;
+    }
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-violet) 60%, var(--accent-pink) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      max-width: 680px;
+      font-size: 1.15rem; color: var(--text-secondary);
+      margin-bottom: 2.5rem;
+      animation: fadeSlideDown 0.7s ease 0.2s both;
+    }
+    .hero-cta {
+      display: flex; gap: 1rem; flex-wrap: wrap;
+      justify-content: center;
+      animation: fadeSlideDown 0.7s ease 0.3s both;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.85rem 2rem;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      color: #fff; font-weight: 700; font-size: 0.95rem;
+      border: none; border-radius: 12px;
+      cursor: pointer; text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 8px 32px rgba(56,189,248,0.3);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(56,189,248,0.45); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.85rem 2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary); font-weight: 600; font-size: 0.95rem;
+      border-radius: 12px; cursor: pointer; text-decoration: none;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .btn-secondary:hover { background: var(--bg-card-hover); border-color: var(--border-glow); }
+
+    /* ── STATS STRIP ── */
+    .stats-strip {
+      display: flex; flex-wrap: wrap;
+      justify-content: center; gap: 1.5rem;
+      padding: 3rem 2rem;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-item {
+      text-align: center; min-width: 140px;
+    }
+    .stat-num {
+      font-size: 2.2rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .stat-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* ── SECTIONS ── */
+    section { padding: 5rem 2rem; max-width: 1200px; margin: 0 auto; }
+    .section-tag {
+      display: inline-block;
+      font-size: 0.75rem; font-weight: 700;
+      color: var(--accent-cyan);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 0.75rem;
+    }
+    h2.section-title {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 800; margin-bottom: 1rem;
+    }
+    .section-sub { color: var(--text-secondary); max-width: 600px; margin-bottom: 3rem; font-size: 1rem; }
+
+    /* ── CARDS ── */
+    .card-grid { display: grid; gap: 1.5rem; }
+    .card-grid-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .card-grid-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.75rem;
+      transition: background 0.25s, border-color 0.25s, transform 0.25s;
+      backdrop-filter: blur(10px);
+    }
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-glow);
+      transform: translateY(-4px);
+    }
+    .card-icon { font-size: 2rem; margin-bottom: 1rem; }
+    .card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .card p { font-size: 0.9rem; color: var(--text-secondary); }
+
+    /* ── MODEL TABLE ── */
+    .model-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--bg-card);
+      backdrop-filter: blur(10px);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: rgba(56,189,248,0.06); }
+    th {
+      padding: 1rem 1.25rem;
+      text-align: left; font-size: 0.8rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 1rem 1.25rem;
+      font-size: 0.95rem;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr.winner td { background: rgba(52,211,153,0.05); }
+    .badge {
+      display: inline-block; padding: 0.2rem 0.6rem;
+      border-radius: 6px; font-size: 0.75rem; font-weight: 700;
+    }
+    .badge-green { background: rgba(52,211,153,0.15); color: var(--accent-green); }
+    .badge-orange { background: rgba(251,146,60,0.15); color: var(--accent-orange); }
+    .badge-violet { background: rgba(167,139,250,0.15); color: var(--accent-violet); }
+
+    /* ── SCREENSHOTS ── */
+    .screenshot-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    .screenshot-card {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      background: var(--bg-card);
+      transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+      cursor: pointer;
+    }
+    .screenshot-card:hover {
+      transform: translateY(-6px) scale(1.01);
+      box-shadow: var(--shadow-glow);
+      border-color: var(--border-glow);
+    }
+    .screenshot-card img {
+      width: 100%; display: block;
+      aspect-ratio: 16/10; object-fit: cover;
+      transition: transform 0.4s;
+    }
+    .screenshot-card:hover img { transform: scale(1.03); }
+    .screenshot-caption {
+      padding: 0.9rem 1.1rem;
+      font-size: 0.875rem; font-weight: 600;
+      color: var(--text-secondary);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+
+    /* ── LIGHTBOX ── */
+    #lightbox {
+      display: none; position: fixed; inset: 0;
+      z-index: 999;
+      background: rgba(0,0,0,0.92);
+      backdrop-filter: blur(12px);
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 1rem;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img {
+      max-width: 90vw; max-height: 80vh;
+      border-radius: 16px;
+      box-shadow: 0 0 80px rgba(56,189,248,0.2);
+      animation: zoomIn 0.25s ease;
+    }
+    @keyframes zoomIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    #lightbox-caption { color: var(--text-secondary); font-size: 0.95rem; }
+    #lightbox-close {
+      position: absolute; top: 1.5rem; right: 2rem;
+      font-size: 2rem; cursor: pointer;
+      color: var(--text-muted);
+      background: none; border: none;
+      transition: color 0.2s;
+    }
+    #lightbox-close:hover { color: var(--text-primary); }
+
+    /* ── PIPELINE ── */
+    .pipeline {
+      display: flex; flex-direction: column; gap: 0;
+      max-width: 700px; margin: 0 auto;
+    }
+    .pipeline-step {
+      display: flex; align-items: flex-start; gap: 1.25rem;
+    }
+    .pipeline-connector {
+      display: flex; flex-direction: column; align-items: center;
+      min-width: 48px;
+    }
+    .step-circle {
+      width: 48px; height: 48px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+      border: 2px solid var(--border-glow);
+      background: var(--bg-card);
+      flex-shrink: 0;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .pipeline-step:hover .step-circle {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(56,189,248,0.3);
+    }
+    .step-line {
+      width: 2px; flex: 1; min-height: 32px;
+      background: linear-gradient(180deg, var(--border-glow), transparent);
+    }
+    .step-content {
+      flex: 1; padding: 0.2rem 0 2rem;
+    }
+    .step-content h4 { font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .step-content p { font-size: 0.875rem; color: var(--text-secondary); }
+    .step-file {
+      display: inline-block; margin-top: 0.4rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem; color: var(--accent-cyan);
+      background: rgba(56,189,248,0.08);
+      padding: 0.15rem 0.6rem; border-radius: 5px;
+    }
+
+    /* ── TECH STACK ── */
+    .tech-grid {
+      display: flex; flex-wrap: wrap; gap: 0.75rem;
+    }
+    .tech-pill {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 1.1rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.85rem; font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      transition: border-color 0.2s, color 0.2s, transform 0.2s;
+    }
+    .tech-pill:hover {
+      border-color: var(--border-glow);
+      color: var(--accent-cyan);
+      transform: translateY(-2px);
+    }
+
+    /* ── METRICS BARS ── */
+    .metric-row { margin-bottom: 1.25rem; }
+    .metric-label {
+      display: flex; justify-content: space-between;
+      font-size: 0.875rem; font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+    .metric-val { color: var(--accent-cyan); }
+    .bar-track {
+      height: 8px; border-radius: 4px;
+      background: rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%; border-radius: 4px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-violet));
+      width: 0;
+      transition: width 1.2s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 3rem 2rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    footer a { color: var(--accent-cyan); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeSlideDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .reveal {
+      opacity: 0; transform: translateY(30px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 768px) {
+      nav { padding: 1rem 1.25rem; }
+      .nav-links { display: none; }
+      section { padding: 3.5rem 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Lightbox -->
+<div id="lightbox" role="dialog" aria-modal="true">
+  <button id="lightbox-close" aria-label="Close">&times;</button>
+  <img id="lightbox-img" src="" alt="" />
+  <p id="lightbox-caption"></p>
+</div>
+
+<canvas id="bg-canvas"></canvas>
+
+<div class="wrapper">
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-brand">🛡️ AI Sentinel</div>
+    <div class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#results">Results</a>
+      <a href="#screenshots">Screenshots</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#stack">Stack</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      ML Project · Credit Card Fraud Detection
+    </div>
+    <h1>
+      Detect Fraud.<br/>
+      <span>Protect Every Transaction.</span>
+    </h1>
+    <p>
+      An end-to-end machine learning pipeline using XGBoost + SMOTE,
+      paired with a real-time glassmorphic web dashboard — catching 80 out
+      of 95 frauds with <strong>85% fewer false alarms</strong> than baseline.
+    </p>
+    <div class="hero-cta">
+      <a href="#screenshots" class="btn-primary">📸 View Screenshots</a>
+      <a href="#pipeline" class="btn-secondary">⚙️ Explore Pipeline</a>
+    </div>
+  </header>
+
+  <!-- STATS STRIP -->
+  <div class="stats-strip">
+    <div class="stat-item">
+      <div class="stat-num" data-target="284807">0</div>
+      <div class="stat-label">Transactions Analyzed</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" data-target="492">0</div>
+      <div class="stat-label">Fraud Cases</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" data-suffix="%">99.60</div>
+      <div class="stat-label">XGBoost Accuracy</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" data-suffix="%">84.21</div>
+      <div class="stat-label">Fraud Recall Rate</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" data-suffix="%">85</div>
+      <div class="stat-label">Fewer False Alarms</div>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <div class="reveal">
+      <div class="section-tag">📌 Overview</div>
+      <h2 class="section-title">Why This Project Matters</h2>
+      <p class="section-sub">Standard classifiers fail on extreme imbalance. A naive model predicting "legit" for everything would achieve 99.83% accuracy — but catch zero frauds.</p>
+    </div>
+    <div class="card-grid card-grid-2 reveal">
+      <div class="card">
+        <div class="card-icon">⚖️</div>
+        <h3>SMOTE Oversampling</h3>
+        <p>Synthesizes new minority-class (fraud) training examples by interpolating between existing fraud samples — without naive duplication.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🎯</div>
+        <h3>PR-AUC Optimization</h3>
+        <p>Optimizes for Precision-Recall AUC — not accuracy — to honestly measure real fraud-detection performance on imbalanced data.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔬</div>
+        <h3>RobustScaler</h3>
+        <p>Transaction amounts span $0 to $25,000+. RobustScaler uses median/IQR instead of mean/std, resisting extreme outliers that distort normalization.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🌐</div>
+        <h3>Live Web Dashboard</h3>
+        <p>FastAPI + Glassmorphic UI with real-time transaction scoring, animated risk gauge, feature impact bars, and EDA chart gallery.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" style="padding-top:0">
+    <div class="reveal">
+      <div class="section-tag">📊 Results</div>
+      <h2 class="section-title">Model Performance</h2>
+      <p class="section-sub">Evaluated on 56,746 held-out transactions including 95 real fraud cases.</p>
+    </div>
+    <div class="model-table-wrap reveal">
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Accuracy</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>F1-Score</th>
+            <th>PR-AUC ⭐</th>
+            <th>ROC-AUC</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Logistic Regression <span class="badge badge-orange">Baseline</span></td>
+            <td>97.40%</td>
+            <td>5.37%</td>
+            <td>87.37%</td>
+            <td>0.1012</td>
+            <td>0.6729</td>
+            <td>0.9600</td>
+          </tr>
+          <tr class="winner">
+            <td><strong>XGBoost</strong> <span class="badge badge-green">🏆 Winner</span></td>
+            <td><strong>99.60%</strong></td>
+            <td><strong>28.07%</strong></td>
+            <td>84.21%</td>
+            <td><strong>0.4255</strong></td>
+            <td><strong>0.7810</strong></td>
+            <td><strong>0.9695</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Metric bars -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2rem;margin-top:2.5rem">
+      <div class="card reveal">
+        <h3 style="margin-bottom:1.25rem;font-size:0.95rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em">XGBoost Metrics</h3>
+        <div class="metric-row">
+          <div class="metric-label"><span>Accuracy</span><span class="metric-val">99.60%</span></div>
+          <div class="bar-track"><div class="bar-fill" data-width="99.6"></div></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label"><span>PR-AUC</span><span class="metric-val">0.7810</span></div>
+          <div class="bar-track"><div class="bar-fill" data-width="78.1"></div></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label"><span>ROC-AUC</span><span class="metric-val">0.9695</span></div>
+          <div class="bar-track"><div class="bar-fill" data-width="96.95"></div></div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label"><span>Recall</span><span class="metric-val">84.21%</span></div>
+          <div class="bar-track"><div class="bar-fill" data-width="84.21"></div></div>
+        </div>
+      </div>
+      <div class="card reveal">
+        <h3 style="margin-bottom:1.25rem;font-size:0.95rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.08em">False Alarms Comparison</h3>
+        <div style="display:flex;align-items:center;gap:1.5rem;margin-bottom:1.5rem">
+          <div style="text-align:center">
+            <div style="font-size:2.5rem;font-weight:800;color:var(--accent-orange)">1,463</div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">Logistic Regression</div>
+          </div>
+          <div style="font-size:2rem;color:var(--text-muted)">→</div>
+          <div style="text-align:center">
+            <div style="font-size:2.5rem;font-weight:800;color:var(--accent-green)">205</div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">XGBoost</div>
+          </div>
+        </div>
+        <div style="padding:1rem;border-radius:10px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2)">
+          <p style="font-size:0.875rem;color:var(--accent-green);font-weight:600">
+            🎉 85% reduction in false alarms — 1,258 fewer legitimate customers flagged unnecessarily.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREENSHOTS -->
+  <section id="screenshots" style="padding-top:0">
+    <div class="reveal">
+      <div class="section-tag">📸 Visualizations</div>
+      <h2 class="section-title">EDA & Evaluation Charts</h2>
+      <p class="section-sub">Click any chart to expand it. All plots are auto-generated by the pipeline.</p>
+    </div>
+    <div class="screenshot-grid reveal">
+      <div class="screenshot-card" onclick="openLightbox('static/plots/confusion_matrices.png','Confusion Matrices — Logistic Regression vs XGBoost')">
+        <img src="static/plots/confusion_matrices.png" alt="Confusion Matrices" loading="lazy" />
+        <div class="screenshot-caption">🔢 Confusion Matrices</div>
+      </div>
+      <div class="screenshot-card" onclick="openLightbox('static/plots/pr_curve.png','Precision-Recall Curve Comparison')">
+        <img src="static/plots/pr_curve.png" alt="PR Curve" loading="lazy" />
+        <div class="screenshot-caption">📉 Precision-Recall Curves</div>
+      </div>
+      <div class="screenshot-card" onclick="openLightbox('static/plots/amount_distribution.png','Transaction Amount Distribution (Log Scale)')">
+        <img src="static/plots/amount_distribution.png" alt="Amount Distribution" loading="lazy" />
+        <div class="screenshot-caption">💰 Amount Distribution</div>
+      </div>
+      <div class="screenshot-card" onclick="openLightbox('static/plots/correlation_matrix.png','Feature Correlation Heatmap')">
+        <img src="static/plots/correlation_matrix.png" alt="Correlation Heatmap" loading="lazy" />
+        <div class="screenshot-caption">🌡️ Correlation Heatmap</div>
+      </div>
+      <div class="screenshot-card" onclick="openLightbox('static/plots/time_distribution.png','Time-Based Transaction Volume')">
+        <img src="static/plots/time_distribution.png" alt="Time Distribution" loading="lazy" />
+        <div class="screenshot-caption">⏱️ Time Distribution</div>
+      </div>
+      <div class="screenshot-card" onclick="openLightbox('static/plots/top_features_scatter.png','Class Separability: V17 vs V14')">
+        <img src="static/plots/top_features_scatter.png" alt="Feature Scatter" loading="lazy" />
+        <div class="screenshot-caption">🔍 Feature Separability</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section id="pipeline" style="padding-top:0">
+    <div class="reveal">
+      <div class="section-tag">⚙️ Pipeline</div>
+      <h2 class="section-title">ML Pipeline Architecture</h2>
+      <p class="section-sub">A 7-stage pipeline from raw CSV to live API dashboard.</p>
+    </div>
+    <div class="pipeline reveal">
+      <div class="pipeline-step">
+        <div class="pipeline-connector">
+          <div class="step-circle">📂</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <h4>Raw Data Ingestion</h4>
+          <p>284,807 real-world European bank transactions. V1–V28 are PCA-derived features; Time and Amount are original.</p>
+          <span class="step-file">creditcard.csv</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-connector">
+          <div class="step-circle">🔧</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <h4>Preprocessing</h4>
+          <p>Remove 1,081 duplicate rows. Apply RobustScaler to Time & Amount. Stratified 80/20 train-test split.</p>
+          <span class="step-file">src/preprocess.py</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-connector">
+          <div class="step-circle">📊</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <h4>Exploratory Data Analysis</h4>
+          <p>Generate 6 publication-quality charts: amount dist, time density, correlation heatmap, scatter separability.</p>
+          <span class="step-file">src/eda.py</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-connector">
+          <div class="step-circle">⚖️</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <h4>SMOTE Resampling</h4>
+          <p>Oversample the minority fraud class in the training set only (never test set) to prevent data leakage.</p>
+          <span class="step-file">src/train.py</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-connector">
+          <div class="step-circle">🤖</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <h4>Model Training</h4>
+          <p>Train two classifiers in parallel: cost-balanced Logistic Regression and XGBoost with scale_pos_weight.</p>
+          <span class="step-file">src/train.py</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-connector">
+          <div class="step-circle">📏</div>
+          <div class="step-line"></div>
+        </div>
+        <div class="step-content">
+          <h4>Evaluate & Export</h4>
+          <p>Calculate PR-AUC, ROC-AUC, F1, confusion matrices. Save models as .pkl and metrics as metrics.json.</p>
+          <span class="step-file">models/metrics.json</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="pipeline-connector">
+          <div class="step-circle">🌐</div>
+        </div>
+        <div class="step-content">
+          <h4>FastAPI Web Dashboard</h4>
+          <p>Serve real-time predictions, animated gauge visuals, model switching, and the EDA gallery on localhost:8000.</p>
+          <span class="step-file">src/serve.py</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECH STACK -->
+  <section id="stack" style="padding-top:0">
+    <div class="reveal">
+      <div class="section-tag">🛠️ Stack</div>
+      <h2 class="section-title">Technologies Used</h2>
+      <p class="section-sub">Battle-tested open-source libraries for production-grade ML pipelines.</p>
+    </div>
+    <div class="tech-grid reveal">
+      <div class="tech-pill">🐍 Python 3.10+</div>
+      <div class="tech-pill">🌲 XGBoost</div>
+      <div class="tech-pill">🔬 scikit-learn</div>
+      <div class="tech-pill">⚖️ imbalanced-learn (SMOTE)</div>
+      <div class="tech-pill">🐼 pandas</div>
+      <div class="tech-pill">🔢 NumPy</div>
+      <div class="tech-pill">📊 Matplotlib</div>
+      <div class="tech-pill">🎨 Seaborn</div>
+      <div class="tech-pill">⚡ FastAPI</div>
+      <div class="tech-pill">🦄 Uvicorn</div>
+      <div class="tech-pill">🖼️ Jinja2</div>
+      <div class="tech-pill">💾 joblib</div>
+    </div>
+
+    <!-- Setup Instructions -->
+    <div class="card reveal" style="margin-top:3rem">
+      <h3 style="margin-bottom:1.25rem">🚀 Quick Start</h3>
+      <pre style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:var(--accent-cyan);line-height:1.8;overflow-x:auto"><span style="color:var(--text-muted)"># 1. Install dependencies</span>
+pip install -r requirements.txt
+
+<span style="color:var(--text-muted)"># 2. Run the ML pipeline</span>
+python src/preprocess.py
+python src/eda.py
+python src/train.py
+
+<span style="color:var(--text-muted)"># 3. Launch the dashboard</span>
+python src/serve.py
+
+<span style="color:var(--text-muted)"># 4. Open in browser</span>
+<span style="color:var(--accent-green)">http://127.0.0.1:8000</span></pre>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>🛡️ Credit Card Fraud Detection · AI Sentinel System</p>
+    <p style="margin-top:0.5rem">Built with XGBoost, FastAPI, scikit-learn · Optimized for PR-AUC</p>
+    <p style="margin-top:0.5rem;font-size:0.8rem">
+      Dataset: <a href="https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud" target="_blank" rel="noopener">Kaggle — ULB Credit Card Fraud</a>
+    </p>
+  </footer>
+
+</div><!-- /wrapper -->
+
+<script>
+  // ── CANVAS PARTICLES ──
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < 80; i++) {
+    particles.push({
+      x: Math.random() * 1920,
+      y: Math.random() * 1080,
+      r: Math.random() * 1.5 + 0.3,
+      dx: (Math.random() - 0.5) * 0.3,
+      dy: (Math.random() - 0.5) * 0.3,
+      alpha: Math.random() * 0.5 + 0.1
+    });
+  }
+
+  function drawParticles() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x % W, p.y % H, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(56,189,248,${p.alpha})`;
+      ctx.fill();
+      p.x += p.dx; p.y += p.dy;
+      if (p.x < 0) p.x = W;
+      if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H;
+      if (p.y > H) p.y = 0;
+    });
+    requestAnimationFrame(drawParticles);
+  }
+  drawParticles();
+
+  // ── SCROLL REVEAL ──
+  const reveals = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('visible'); }
+    });
+  }, { threshold: 0.12 });
+  reveals.forEach(el => io.observe(el));
+
+  // ── ANIMATED COUNTERS ──
+  const counters = document.querySelectorAll('.stat-num[data-target]');
+  const counterIO = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      const el = e.target;
+      const target = parseInt(el.dataset.target);
+      let current = 0;
+      const step = target / 60;
+      const timer = setInterval(() => {
+        current = Math.min(current + step, target);
+        el.textContent = Math.floor(current).toLocaleString();
+        if (current >= target) clearInterval(timer);
+      }, 16);
+      counterIO.unobserve(el);
+    });
+  }, { threshold: 0.5 });
+  counters.forEach(el => counterIO.observe(el));
+
+  // ── METRIC BARS ──
+  const bars = document.querySelectorAll('.bar-fill');
+  const barIO = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      e.target.style.width = e.target.dataset.width + '%';
+      barIO.unobserve(e.target);
+    });
+  }, { threshold: 0.3 });
+  bars.forEach(b => barIO.observe(b));
+
+  // ── LIGHTBOX ──
+  const lightbox = document.getElementById('lightbox');
+  const lbImg = document.getElementById('lightbox-img');
+  const lbCaption = document.getElementById('lightbox-caption');
+
+  function openLightbox(src, caption) {
+    lbImg.src = src;
+    lbImg.alt = caption;
+    lbCaption.textContent = caption;
+    lightbox.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  document.getElementById('lightbox-close').addEventListener('click', () => {
+    lightbox.classList.remove('open');
+    document.body.style.overflow = '';
+  });
+  lightbox.addEventListener('click', e => {
+    if (e.target === lightbox) {
+      lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  });
+</script>
+</body>
+</html>
